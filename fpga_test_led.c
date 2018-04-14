@@ -23,6 +23,7 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
+    
 	data = atoi(argv[1]);
 	if((data<0)||(data>255))
 	{
