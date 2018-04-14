@@ -49,7 +49,7 @@ int main(void){
                 
 
                 case 0:
-                    input_clock(id);
+                    input_clock(qid);
                     break;
                 case 1:
                     break;
@@ -83,7 +83,7 @@ int main(void){
                 
                 switch(mode) {
                     case 0:
-                        output_clock();
+                        output_clock(qid);
                         break;
                     case 1:
                         break;
@@ -102,9 +102,10 @@ int main(void){
         }
     } 
 
-    success = msgctl(id, IPC_RMID, (struct msqid_ds *)NULL);
+    success = msgctl(qid, IPC_RMID, (struct msqid_ds *)NULL);
     if(success == -1) {
 	    //Exception
-    ]
+    }
+    
     return 0;
 }

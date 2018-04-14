@@ -46,7 +46,7 @@ int input_clock(key_t qid) {
 	dev = open("/dev/fpga_push_switch", O_RDWR);
 
 	if (dev<0){
-		printf("Device Open Error\n");
+		printf("Switch input Device Open Error\n");
 		close(dev);
 		return -1;
 	}
@@ -82,11 +82,15 @@ int input_clock(key_t qid) {
                 }
                 */
             }
-            //printf("test\n");
+            printf("switch input test\n");
         }
         success = msgsnd(qid, (const void *)(&v_msg), sizeof(msg) - sizeof(long), IPC_NOWAIT);
         if(success == -1) {
+            printf("switch input message queue sending failed\n");
 	        //Exception
+        }
+        else {
+            printf("switch input message queue sending SUCCESS!!!\n");
         }
 	}
 	close(dev);
@@ -108,20 +112,15 @@ int output_clock(key_t qid) {
 
     /********************** FND OUTPUT PART **********************/
     memset(data,0,sizeof(data));
-    data[0]='8'-0x30;
-    data[1]='8'-0x30;
-    data[2]='8'-0x30;
-    data[3]='8'-0x30;
+    data[0]='7'-0x30;
+    data[1]='7'-0x30;
+    data[2]='5'-0x30;
+    data[3]='1'-0x30;
 
     dev = open(FND_DEVICE, O_RDWR);
     if (dev<0) {
         printf("Device open error : %s\n",FND_DEVICE);
         exit(1);
-    }
-
-    success = msgrcv(qid, (const void *)(&v_msg), sizeof(msg) - sizeof(long), IPC_NOWAIT);
-    if(success == -1) {
-    	//Exception
     }
 
     retval=write(dev,&data,4);	
@@ -162,7 +161,7 @@ int output_clock(key_t qid) {
         exit(1);
     }
 
-    data[0] = 128;
+    data[0] = 12;
 
     if(1) {
         // if switch data input, change data[0] to 32, 16 each, 1 second repeat.
