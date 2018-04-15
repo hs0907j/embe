@@ -12,53 +12,40 @@ Auth : largest@huins.com */
 #include <fcntl.h>
 #include <string.h>
 #include "clock.h"
-#include "readkey_input.h"
+#include "button_input.h"
 #include "my_data_structure.h"
 
 #define SHARE_MEM_SIZE 1024
-void shared_memory_sending(void *shm_addr, int add_space, msg v_msg);
+void shared_memory_sending(void *shm_addr, msg v_msg);
 
 
 int main(void){
     pid_t pid;
     key_t queue_key = 1234321;
     key_t shm_key = 124141251;
-    int qid_sw_input;
+    int qid;
     int sid, shm_stack = 0;
     void *shm_addr, *ptr;
     int mode = 0;
     int success;
     int i;
+    int h_add, m_add;
+
+    int clock_change = 1;
 
     msg v_msg;
 
-    qid_sw_input = msgget(queue_key , IPC_CREAT|0664);   // parent msg queue allocation.
-    if(qid_sw_input == -1) {
-	    //Exception
+    qid = msgget(queue_key , IPC_CREAT|0664);   // parent msg queue allocation.
+    if(qid == -1) {
+	    printf("Making Message Queue Failed...\n");
     }
-
+    
     sid = shmget(shm_key, SHARE_MEM_SIZE, IPC_CREAT|0664);
     if(sid == -1) {
         printf("Making Shared Memory Failed....\n");
     }
 
     shm_addr = (void*)shmat(sid, NULL, 0);
-    
-    ((int *)shm_addr)[0] = 1;
-    printf("shm_addr[0] is %d\n", ((int*)shm_addr)[0]);
- 
-/*
-    printf("sizeof(shm_addr) is %d\n", sizeof(shm_addr));
-    for(i=0; i< 50; i++) {
-        printf("%d ", shm_addr[i]);
-    }
-    printf("\n");
-    memset(shm_addr, 0, SHARE_MEM_SIZE);
-    for(i=0; i< 50; i++) {
-        printf("%d ", shm_addr[i]);
-    }
-    printf("\n");
-*/
 
     pid = fork();
     if(pid < 0)
@@ -70,36 +57,14 @@ int main(void){
     {
         printf("Input Process Actived.\n");
 
-        qid_sw_input = msgget(queue_key, 0664);
-        if(qid_sw_input == -1) {
-	        //Exception
+        qid = msgget(queue_key, 0664);
+        if(qid == -1) {
+	        printf("child process queue get failed...\n");
         }
         
-        while(1) {
-            // use switch and read key prog.
-            // start with mode 0.
-
-            switch(mode) {
-                
-
-                case 0:
-                    input_clock(qid_sw_input, mode);
-                    break;
-                case 1:
-                    break;
-                case 2:
-                    break;
-                case 3:
-                    break;
-            }
-
-            //if read key, then use message queue, and change mode.
-            //if key is "BACK", break, and quit.
-
-            if(1) break;
-        }
+        button_input(qid, mode);
     }
-    else    // parent. read key and after that, birth child.
+    else
     {
         pid = fork();
         if(pid < 0) 
@@ -109,15 +74,45 @@ int main(void){
         }
         else if(pid == 0) // output process. child 2.
         {
+            h_add = m_add = 0;
+
+            
+            // Accessing shared memory.
+            sid = shmget(shm_key, SHARE_MEM_SIZE, 0664);
+            if(sid == -1) {
+                printf("Accessing Parent Shared Memory Failed....\n");
+            }
+
+            // fatch shared memory data.
+            shm_addr = (void*)shmat(sid, NULL, 0);
+
+            void *shm_ptr;
+            
             printf("Output Process Actived.\n");
 
             while(1) {
-                // receive message queue, and change mode.
+                /************* shared memory reading start. **********/
+                shm_ptr = shm_addr;
+                v_msg.msg_type = *((char *)shm_ptr);
+                printf("v_msg.msg_type is %ld\n", v_msg.msg_type);
+
+                shm_ptr++;
+
+                if(v_msg.msg_type == SW_TO_FND || v_msg.msg_type == SW_TO_LED) {
+                    //printf("input data is switch\n");
+                    for(i=0; i<9; i++) {
+                        v_msg.data[i] = *((char*)shm_ptr);
+                        shm_ptr++;
+                    }
+                }
+                /************* shared memory reading done. **********/
+
+                // receive shared memory, and change mode.
                 // start with mode 0.
                 
                 switch(mode) {
                     case 0:
-                        output_clock(qid_sw_input);
+                        output_clock(v_msg);
                         break;
                     case 1:
                         break;
@@ -126,71 +121,120 @@ int main(void){
                     case 3:
                         break;
                 }
-
-                if(1) break;
             }
         }
-        else { // parent.
+        else { // parent. Receive Child1's Message Queue.
             printf("Parent Process Actived.\n");
 
+            memset(v_msg.data, 0, sizeof(v_msg.data));
+            v_msg.msg_type = -1;
             while(1) {
-
-                // Message Queue receiving.
-                success = msgrcv(qid_sw_input, (void *)(&v_msg), sizeof(msg) - sizeof(long), SW_INPUT, IPC_NOWAIT);
+                // 1. Switch message receive.
+                
+                success = msgrcv(qid, (void *)(&v_msg), sizeof(msg) - sizeof(long), SW_INPUT, IPC_NOWAIT);
                 if(success == -1) {
-	              //printf("Receive SW TO FND Message Failed. There is no Message.\n");
+	              //printf("Receive SW Message Failed. There is no Message.\n");
                 }
                 else {
-                    printf("receiving SW TO FND data is ");
+                    printf("receiving SW message queue is ");
                     for(i=0; i<9; i++) {
                         printf("%d ", v_msg.data[i]);
                     }
                     printf("\n");
 
-                    // Shared Memory Sending Start.
+                    for(i=0; i<9; i++) {
+                        if(v_msg.data[i] == 1){
+                            switch(i){
+                                case 0: // switch 1
+                                    clock_change *= -1;
+                                    
+                                    v_msg.msg_type = SW_TO_LED;
+                                    break;
 
-                    
+                                case 1: // switch 2
+                                    v_msg.msg_type = SW_TO_FND;
+                                    break;  
+
+                                case 2: // switch 3
+                                    if(clock_change) {
+                                        v_msg.msg_type = SW_TO_FND;
+                                    }
+                                    break;
+                                case 3: // switch 4
+                                    if(clock_change) {
+                                        v_msg.msg_type = SW_TO_FND;
+                                    }
+                                    break;
+                            }
+                        }
+                    }
+                    if(v_msg.msg_type != SW_INPUT) {
+                        shared_memory_sending(shm_addr, v_msg); 
+                    }
                 }
-
                 
-               
-                
-                shared_memory_sending(shm_addr, 13, v_msg); // data size 9 + sizeof(data_type)
+                // 2. Button message Receive.
 
-                //printf("memory stacked, now addr is %d\n", ptr);
+                success = msgrcv(qid, (void *)(&v_msg), sizeof(msg) - sizeof(long), BUTTON_INPUT, IPC_NOWAIT);
+                if(success == -1) {
+	              //printf("Receive SW Message Failed. There is no Message.\n");
+                }
+                else {
+                    printf("receiving BUTTON data is ");
+                    printf("%d ", v_msg.data[0]);
+                    printf("\n");
+
+                    switch(v_msg.data[0]) {
+                        case 158: // back button. turn off.
+
+                            break;
+
+                        case 115: // volumn + button. mode change.
+                            break;
+
+                        case 114: // volumn - button. mode change.
+                            break;  
+                    }
+                    //shared_memory_sending(shm_addr, v_msg); 
+                }
             }
             printf("parent die\n");
         }
     } 
 
-    /*
-    success = msgctl(qid_sw_input, IPC_RMID, (struct msqid_ds *)NULL); // parent msg queue kill
-    if(success == -1) {
-	    //Exception
-    }
-    */  
     return 0;
 }
 
-void shared_memory_sending(void *shm_addr, int add_space, msg v_msg) {
-    void *ptr = ((int*)shm_addr)[0] + shm_addr;
+void shared_memory_sending(void *shm_addr, msg v_msg) {
+    int CPY_SIZE;
 
-    printf("((int*)shm_addr)[0] is %d\n", ((int*)shm_addr)[0]);
-    printf("shm_addr is %d\n", shm_addr);
-    printf("ptr is %d\n", ptr);
-    if(((int*)shm_addr)[0] + add_space >= SHARE_MEM_SIZE) {
-        //printf("Shared Memory Stack Over! Sending Failed...\n");
+    *((long *)shm_addr) = v_msg.msg_type;
+
+    shm_addr++;
+
+    
+
+    if(v_msg.msg_type == SW_TO_FND || v_msg.msg_type == SW_TO_LED) {
+        CPY_SIZE = 9;
     }
-    else    {
-        *((long*)ptr) = v_msg.msg_type;
-        ptr++;
+    else if(v_msg.msg_type == BUTTON_INPUT) {
+        CPY_SIZE = 3;
+    }
+    memcpy(shm_addr, v_msg.data, CPY_SIZE);    
 
-        //memcpy(ptr, v_msg.data, 9);
-        //for(i=0; i<9; i++) {
-        //(char*)shm_addr[stack++] = v_msg.data[i];
-        //}
-
-
-        //((int*)shm_addr)[0] += 9;
-    }    
+    
+    /*
+    printf("%d ", *((char*)shm_addr));
+    shm_addr++;
+    printf("%d ", *((char*)shm_addr));
+    shm_addr++;
+    printf("%d ", *((char*)shm_addr));
+    shm_addr++;
+    printf("%d ", *((char*)shm_addr));
+    shm_addr++;
+    printf("%d ", *((char*)shm_addr));
+    shm_addr++;
+    printf("%d ", *((char*)shm_addr));
+    shm_addr++;
+    */
 }

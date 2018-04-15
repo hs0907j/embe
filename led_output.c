@@ -46,7 +46,7 @@ int led_output(unsigned char data)
 	//for read
 	data=0;
 	data=*led_addr; //read led
-	printf("Current LED VALUE : %d\n",data);
+	//printf("Current LED VALUE : %d\n",data);
 
 	munmap(led_addr, 4096);
 	close(fd);

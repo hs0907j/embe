@@ -11,31 +11,33 @@
 #define MAX_DIGIT 4
 #define FND_DEVICE "/dev/fpga_fnd"
 
-int fnd_output(void) {
+int fnd_output(int h_add, int m_add) {
     int dev;
 	unsigned char data[4];
 	unsigned char retval;
 	int i;
 	int str_size;
+    int h_temp, m_temp;
     struct tm *t;
 
     time_t timer = time(NULL);
     t = localtime(&timer);
 
-    printf("now time : %d h %d m\n", t->tm_hour, t->tm_min);
-
-    
     memset(data,0,sizeof(data));
-    /*
-    data[0]='7'-0x30;
-    data[1]='7'-0x30;
-    data[2]='5'-0x30;
-    data[3]='1'-0x30;
-    */
-    data[0]=t->tm_hour/10;
-    data[1]=t->tm_hour%10;
-    data[2]=t->tm_min/10;
-    data[3]=t->tm_min%10;
+
+    m_temp = t->tm_min + m_add;
+    if(m_temp >= 60) {
+        i = m_temp/60;
+        m_temp%=60;
+    }
+
+    h_temp = t->tm_hour + h_add + i;
+    if(h_temp >= 24) h_temp = 0;
+
+    data[0]=h_temp/10;
+    data[1]=h_temp%10;
+    data[2]=m_temp/10;
+    data[3]=m_temp%10;
 
     dev = open(FND_DEVICE, O_RDWR);
     if (dev<0) {
@@ -51,18 +53,13 @@ int fnd_output(void) {
 
 	memset(data,0,sizeof(data));
 
-	//sleep(1);
+	sleep(1);
 
 	retval=read(dev,&data,4);
 	if(retval<0) {
 		printf("Read Error!\n");
 		return -1;
 	}
-
-	//printf("Current FND Value : ");
-	//for(i=0;i<str_size;i++)	
-		//printf("%d",data[i]);
-	//printf("\n");
 
     close(dev);
 

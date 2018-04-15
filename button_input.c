@@ -60,67 +60,100 @@ int button_input(key_t qid, int mode) {
 		printf("MainButton input Device Open Error\n");
 	}
 
-    (void)signal(SIGINT, user_signal1);
+    //(void)signal(SIGINT, user_signal1);
 	buff_size=sizeof(push_sw_buff);
 
     while(!quit){
-        /*************** switch input part **************/
     	usleep(100000);
-		read(dev, &push_sw_buff, buff_size);
-
-        memset(sw_msg.data, 0, sizeof(sw_msg.data));
-        
-        switch(mode) {
-            case 0:
-                // for FND
-                sw_msg.msg_type = SW_INPUT;
-                memcpy(sw_msg.data, push_sw_buff, buff_size);
-
-                success = msgsnd(qid, (const void *)(&sw_msg), sizeof(msg) - sizeof(long), IPC_NOWAIT);
-                if(success == -1) {
-                    //printf("switch input for FND sending FAILED...\n");
-                }
-                else {
-                    //printf("switch input for FND sending SUCCESS!!!\n");
-                }
-
-                /*
-                // for LED
-                if(push_sw_buff[0] == 1) {
-                    sw_msg.msg_type = SW_TO_LED;
-                    memcpy(sw_msg.data, push_sw_buff, buff_size);
-
-                    success = msgsnd(qid, (const void *)(&sw_msg), sizeof(msg) - sizeof(long), IPC_NOWAIT);
-                    if(success == -1) {
-                        //printf("switch input for LED sending FAILED...\n");
-                    }
-                    else {
-                        //printf("switch input for LED sending SUCCESS!!!\n");
-                    }
-                }
-                */
-                break;
-            case 1:
-                break;
-            case 2:
-                break;
-            case 3:
-                break;
-        }
-        
+		
         /************** button input part *****************/
         if( (rd = read (fd, ev, size * BUFF_SIZE)) >= size){ //for read nonblocking
-			value = ev[0].value;
+            value = ev[0].value;
 
             switch(ev[0].code) {
                 case 158:   // use message queue to Quit.
+                    quit = 1;
+                    printf("Input child is dying now. bye.\n");
                     break;
+
                 case 115:   // use message queue to mode change.
+                    if( value == KEY_PRESS ) {
+                        printf("mode change +1 key pressed\n");
+
+			            bt_msg.msg_type = BUTTON_INPUT;
+                        bt_msg.data[0] = ev[0].code;
+
+                        success = msgsnd(qid, (const void *)(&bt_msg), sizeof(msg) - sizeof(long), IPC_NOWAIT);
+                        if(success == -1) {
+                            printf("volume + key pressed Message Sending Failed...\n");
+                        }
+                        else {
+                            mode++;
+                            if(mode==4) mode=0;
+                        }
+                    }
                     break;
+
                 case 114:   // use message queue to mode change(reverse).
+                    if( value == KEY_PRESS ) {
+                        printf("mode change -1 key pressed\n");
+
+			            bt_msg.msg_type = BUTTON_INPUT;
+                        bt_msg.data[0] = ev[0].code;
+
+                        success = msgsnd(qid, (const void *)(&bt_msg), sizeof(msg) - sizeof(long), IPC_NOWAIT);
+                        if(success == -1) {
+                            printf("volume - key pressed Message Sending Failed...\n");
+                        }
+                        else {
+                            mode--;
+                            if(mode==-1) mode=3;
+                        }
+                    }
                     break;
             }
 		}
+
+        /*************** switch input part **************/
+        read(dev, &push_sw_buff, buff_size);
+        memset(sw_msg.data, 0, sizeof(sw_msg.data));
+
+        int count;
+
+        switch(mode) {
+            case 0:
+                /************* switch input part *****************/
+                sw_msg.msg_type = SW_INPUT;
+                memcpy(sw_msg.data, push_sw_buff, buff_size);
+               
+                count = 0;
+                for(i=0;i<9;i++)
+                {
+                    count += (sw_msg.data[i] << i);
+                }
+
+                if(count == 0)
+                    break;
+                
+                success = msgsnd(qid, (const void *)(&sw_msg), sizeof(msg) - sizeof(long), IPC_NOWAIT);
+                if(success == -1) {
+                    //printf("switch input sending FAILED...\n");
+                }
+                else {
+                    //printf("switch input sending SUCCESS!!!\n");
+                }
+
+                break;
+            case 1:
+                printf("now input mode is 2\n");
+                break;
+            case 2:
+                printf("now input mode is 3\n");
+                break;
+            case 3:
+                printf("now input mode is 4\n");
+                break;
+        }
     }
 
     return 0;

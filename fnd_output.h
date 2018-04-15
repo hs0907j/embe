@@ -1,1 +1,1 @@
-int fnd_output(void);
+int fnd_output(int h_add, int m_add);
