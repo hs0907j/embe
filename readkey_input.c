@@ -16,7 +16,7 @@
 #define KEY_RELEASE 0
 #define KEY_PRESS 1
 
-void input_read_key(void) {
+void read_key_input(void) {
     struct input_event ev[BUFF_SIZE];
 	int fd, rd, value, size = sizeof (struct input_event);
     int i;

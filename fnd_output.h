@@ -1,0 +1,1 @@
+int fnd_output(void);

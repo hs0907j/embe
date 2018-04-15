@@ -5,187 +5,35 @@ Auth : largest@huins.com */
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/ipc.h>
-#include <sys/msg.h>
-#include <sys/ioctl.h>
+#include "my_data_structure.h"
+#include "led_output.h"
+#include "switch_input.h"
 
-#include <fcntl.h>
-#include <string.h>
-#include <signal.h>
-
-#include "my_msg.h"
-
-#define MAX_DIGIT 4
-#define MAX_BUTTON 9
-#define LED_DEVICE "/dev/fpga_led"
-#define FND_DEVICE "/dev/fpga_fnd"
-
-unsigned char quit = 0;
-
-
-void user_signal1(int sig) 
-{
-	quit = 1;
-}
-
-int input_clock(key_t qid) {
-    int i, j;
-	int dev;
-	int buff_size;
-    int success;
-
-    msg v_msg;
-    
-
+int input_clock(key_t qid_sw_input, int mode) {
+    int RET;  
 
     /**************** SWITCH INPUT PART *****************/
-	unsigned char push_sw_buff[MAX_BUTTON];
-
-	dev = open("/dev/fpga_push_switch", O_RDWR);
-
-	if (dev<0){
-		printf("Switch input Device Open Error\n");
-		close(dev);
-		return -1;
-	}
-
-	(void)signal(SIGINT, user_signal1);
-
-	buff_size=sizeof(push_sw_buff);
-	printf("Press <ctrl+c> to quit. \n");
-
-    v_msg.msg_type = msg_STRING;
-
-	//while(!quit){
-    for(j=0; j<50; j++) {
-    	usleep(400000);
-		read(dev, &push_sw_buff, buff_size);
-
-        printf("Switch input wait ticking now\n");
-        memset(v_msg.data, 0, sizeof(v_msg.data));
-        for(i=0; i<MAX_BUTTON; i++) {
-            if(push_sw_buff[i]){
-                v_msg.data[i] = 1;
-                /*
-                switch(i) {
-                    case 0: // time changing mode trigger.
-                        v_msg.data[0] = '1';
-                        break;
-                    case 1:
-                        break;
-                    case 2:
-                        break;
-                    case 3:
-                        break;
-                }
-                */
-            }
-            printf("switch input test\n");
-        }
-        success = msgsnd(qid, (const void *)(&v_msg), sizeof(msg) - sizeof(long), IPC_NOWAIT);
-        if(success == -1) {
-            printf("switch input message queue sending failed\n");
-	        //Exception
-        }
-        else {
-            printf("switch input message queue sending SUCCESS!!!\n");
-        }
-	}
-	close(dev);
+    RET = button_input(qid_sw_input, mode);
 }
 
-
-#define FND_OUTPUT
-
 int output_clock(key_t qid) {
-    int dev;
-	unsigned char data[4];
-	unsigned char retval;
-	int i;
-	int str_size;
-    int success;
+    int RET;
 
-    msg v_msg;
+    /************ FND OUTPUT PART *************/
 
-
-    /********************** FND OUTPUT PART **********************/
-    memset(data,0,sizeof(data));
-    data[0]='7'-0x30;
-    data[1]='7'-0x30;
-    data[2]='5'-0x30;
-    data[3]='1'-0x30;
-
-    dev = open(FND_DEVICE, O_RDWR);
-    if (dev<0) {
-        printf("Device open error : %s\n",FND_DEVICE);
-        exit(1);
+    RET = fnd_output();
+    if(RET != 0) {
+        printf("FND OUTPUT failed\n");
     }
 
-    retval=write(dev,&data,4);	
-    if(retval<0) {
-        printf("Write Error!\n");
-        return -1;
+    /************* LED OUTPUT *************/
+
+    RET = led_output(14);
+    if(RET != 0) {
+        printf("led mmap failed\n");
     }
 
-	memset(data,0,sizeof(data));
-
-	sleep(1);
-
-	retval=read(dev,&data,4);
-	if(retval<0) {
-		printf("Read Error!\n");
-		return -1;
-	}
-
-	//printf("Current FND Value : ");
-	//for(i=0;i<str_size;i++)	
-		//printf("%d",data[i]);
-	//printf("\n");
-
-	close(dev);
-
-    /************************* LED OUTPUT PART ************************/
-
-	//data[0] = atoi(argv[1]);
-	//if((data[0]<0)||(data[0]>255))
-	//{
-		//printf("Invalid range!\n");
-        //exit(1);
-    //}
-
-    dev = open(LED_DEVICE, O_RDWR);
-    if (dev<0) {
-        printf("Device open error : %s\n",LED_DEVICE);
-        exit(1);
-    }
-
-    data[0] = 12;
-
-    if(1) {
-        // if switch data input, change data[0] to 32, 16 each, 1 second repeat.
-    }
-
-    retval=write(dev,&data[0],1);	
-    if(retval<0) {
-        printf("Write Error!\n");
-        return -1;
-    }
-
-    //sleep(1);
-
-    //data[0]=0;
-    //retval=read(dev,&data[0],1);
-    //if(retval<0) {
-        //printf("Read Error!\n");
-        //return -1;
-    //}
-    //printf("Current LED Value : %d\n",data[0]);
-    //printf("\n");
-	close(dev);
-    
-    return(0);
+    return 0;
 }
 
 

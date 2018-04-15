@@ -1,5 +1,2 @@
-int input_clock(key_t qid);
+int input_clock(key_t qid, int mode);
 int output_clock(key_t qid);
-
-
-void user_signal1(int sig);
