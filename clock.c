@@ -7,51 +7,36 @@ Auth : largest@huins.com */
 
 #include "my_data_structure.h"
 #include "led_output.h"
+extern int mode;
 
-int input_clock(key_t qid_sw_input, int mode) {
+int input_clock(key_t qid_sw_input) {
     int RET;  
 
     /**************** SWITCH INPUT PART *****************/
-    RET = button_input(qid_sw_input, mode);
+    RET = button_input(qid_sw_input);
 }
 
-int output_clock(msg v_msg) {
+int output_clock(msg v_msg, int time_change_flag) {
     int RET;
     static int h_add = 0, m_add = 0;
     void *shm_addr;
-    //msg v_msg;
+    static int led_count = 0;
+    static int led_input = 128;
+
     int i;
 
-    printf("output delay test\n");
-    
-    /*
-    // fatch shared memory data.
-    shm_addr = (void*)shmat(sid, NULL, 0);
-
-
-    printf("shm_addr is %d\n", shm_addr);
-    v_msg.msg_type = *((long *)shm_addr);
-    printf("v_msg.msg_type is %ld\n", v_msg.msg_type);
-    
-    shm_addr++;
-    printf("shm_addr++ is %d\n", shm_addr);
-            
-    if(v_msg.msg_type == SW_TO_FND || v_msg.msg_type == SW_TO_LED) {
-        printf("intput data is switch da\n");
-        for(i=0; i<9; i++) {
-            v_msg.data[i] = *((char*)shm_addr);
-            shm_addr++;
-        }
-        //memcpy(v_msg.data, (char*)shm_addr, 9); 
-    }
-    */
-
-
+    //printf("output delay test\n");
 
     /************ FND OUTPUT PART *************/
-    if(v_msg.msg_type == SW_TO_FND) {
-        printf("hours plus ! : %d\n", h_add);
-        printf("mins plus ! : %d\n", m_add);
+    if((v_msg.msg_type == SW_TO_FND) && time_change_flag) {
+        //printf("hours plus ! : %d\n", h_add);
+        //printf("mins plus ! : %d\n", m_add);
+        //sleep(1);
+
+        if(v_msg.data[1] == 1) {
+            h_add = 0;
+            m_add = 0;
+        }
         if(v_msg.data[2] == 1) h_add++;
         if(v_msg.data[3] == 1) m_add++;
     }
@@ -62,12 +47,44 @@ int output_clock(msg v_msg) {
     }
 
     /************* LED OUTPUT *************/
+    if(v_msg.msg_type == SW_TO_LED) {
+       if(v_msg.data[0]==1) {
+           if(!time_change_flag) {
+               led_input = 128;
+           }
+           else {
+               led_input = 64;
+           }
 
-    RET = led_output(14);
+       }
+    }
+
+    if(time_change_flag) {
+        led_count++;
+        if(led_count >= 12000) {
+            led_count = 0;
+
+            if(led_input == 64) led_input = 32;
+            else led_input = 64;
+        }
+    }
+    /*
+    else if((v_msg.msg_type == -1) && time_change_flag) {
+        led_count++;
+        if(led_count >= 30) {
+            led_count = 0;
+
+            if(led_input == 64) led_input = 32;
+            else led_input = 64;
+        }
+    }
+    */
+
+    RET = led_output(led_input);
+
     if(RET != 0) {
         printf("led mmap failed\n");
     }
-
     return 0;
 }
 

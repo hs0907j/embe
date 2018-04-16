@@ -25,6 +25,7 @@
 #define KEY_RELEASE 0
 #define KEY_PRESS 1
 
+extern int mode;
 unsigned char quit = 0;
 
 void user_signal1(int sig) 
@@ -32,7 +33,7 @@ void user_signal1(int sig)
 	quit = 1;
 }
 
-int button_input(key_t qid, int mode) {
+int button_input(key_t qid) {
     struct input_event ev[BUFF_SIZE];
 	int fd, rd, value, size = sizeof (struct input_event);
 	char name[256] = "Unknown";
@@ -146,6 +147,28 @@ int button_input(key_t qid, int mode) {
                 break;
             case 1:
                 printf("now input mode is 2\n");
+                
+                sw_msg.msg_type = SW_INPUT;
+                memcpy(sw_msg.data, push_sw_buff, buff_size);
+               
+                count = 0;
+                for(i=0;i<9;i++)
+                {
+                    count += (sw_msg.data[i] << i);
+                }
+
+                if(count == 0)
+                    break;
+                
+                success = msgsnd(qid, (const void *)(&sw_msg), sizeof(msg) - sizeof(long), IPC_NOWAIT);
+                if(success == -1) {
+                    //printf("switch input sending FAILED...\n");
+                }
+                else {
+                    //printf("switch input sending SUCCESS!!!\n");
+                }
+
+
                 break;
             case 2:
                 printf("now input mode is 3\n");

@@ -18,6 +18,7 @@ Auth : largest@huins.com */
 #define SHARE_MEM_SIZE 1024
 void shared_memory_sending(void *shm_addr, msg v_msg);
 
+int mode = 0;
 
 int main(void){
     pid_t pid;
@@ -26,7 +27,6 @@ int main(void){
     int qid;
     int sid, shm_stack = 0;
     void *shm_addr, *ptr;
-    int mode = 0;
     int success;
     int i;
     int h_add, m_add;
@@ -44,8 +44,10 @@ int main(void){
     if(sid == -1) {
         printf("Making Shared Memory Failed....\n");
     }
-
+    
     shm_addr = (void*)shmat(sid, NULL, 0);
+
+    led_setup();
 
     pid = fork();
     if(pid < 0)
@@ -62,7 +64,7 @@ int main(void){
 	        printf("child process queue get failed...\n");
         }
         
-        button_input(qid, mode);
+        button_input(qid);
     }
     else
     {
@@ -72,7 +74,8 @@ int main(void){
             printf("Output Process Fork Failed.\n");
             // Fork Fail
         }
-        else if(pid == 0) // output process. child 2.
+        //****************** output process. child 2 **********************************/
+        else if(pid == 0) 
         {
             h_add = m_add = 0;
 
@@ -87,6 +90,7 @@ int main(void){
             shm_addr = (void*)shmat(sid, NULL, 0);
 
             void *shm_ptr;
+            int time_change_flag = 0; // 0 don't work, 1 work.
             
             printf("Output Process Actived.\n");
 
@@ -94,32 +98,45 @@ int main(void){
                 /************* shared memory reading start. **********/
                 shm_ptr = shm_addr;
                 v_msg.msg_type = *((char *)shm_ptr);
-                printf("v_msg.msg_type is %ld\n", v_msg.msg_type);
+                if((v_msg.msg_type != -1) || time_change_flag) {
+                    //printf("v_msg.msg_type is %ld\n", v_msg.msg_type);
 
-                shm_ptr++;
+                    shm_ptr++;
 
-                if(v_msg.msg_type == SW_TO_FND || v_msg.msg_type == SW_TO_LED) {
-                    //printf("input data is switch\n");
-                    for(i=0; i<9; i++) {
-                        v_msg.data[i] = *((char*)shm_ptr);
-                        shm_ptr++;
+                    if((v_msg.msg_type == SW_TO_FND) || (v_msg.msg_type == SW_TO_LED)) {
+                        //printf("input data is switch\n");
+                        for(i=0; i<9; i++) {
+                            v_msg.data[i] = *((char*)shm_ptr);
+                            shm_ptr++;
+                        }
+
+                        if(v_msg.data[0]==1) {
+                            if(v_msg.msg_type != 0) { // by new push [0] key.
+                                if(time_change_flag) time_change_flag = 0;
+                                else time_change_flag = 1;
+                            }
+                        }
                     }
-                }
-                /************* shared memory reading done. **********/
 
-                // receive shared memory, and change mode.
-                // start with mode 0.
-                
-                switch(mode) {
-                    case 0:
-                        output_clock(v_msg);
-                        break;
-                    case 1:
-                        break;
-                    case 2:
-                        break;
-                    case 3:
-                        break;
+                    //printf("time_change_flag is %d\n", time_change_flag);
+
+                    *((long *)shm_addr) = -1;
+                    /************* shared memory reading done. **********/
+
+                    // receive shared memory, and change mode.
+                    // start with mode 0.
+
+                    switch(mode) {
+                        case 0:
+                            output_clock(v_msg, time_change_flag);
+                            break;
+                        case 1:
+                            break;
+                        case 2:
+                            break;
+                        case 3:
+                            break;
+                    }
                 }
             }
         }
@@ -142,6 +159,7 @@ int main(void){
                     }
                     printf("\n");
 
+                    // do it ! switch()
                     for(i=0; i<9; i++) {
                         if(v_msg.data[i] == 1){
                             switch(i){

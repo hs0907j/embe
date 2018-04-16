@@ -7,19 +7,13 @@
 #define FPGA_BASE_ADDRESS 0x08000000 //fpga_base address
 #define LED_ADDR 0x16 
 
-int led_output(unsigned char data)
-{
+unsigned long *fpga_addr = 0;
+unsigned char *led_addr = 0;
+
+int led_setup(void) {
 	int fd,i;
-
-	unsigned long *fpga_addr = 0;
-	unsigned char *led_addr =0;
-
-	if( (data<0) || (data>255) ){
-		printf("Invalid range!\n");
-		//exit(1);
-        return -1;
-	}
-
+	static int initial_flag = 1;
+	
 	fd = open("/dev/mem", O_RDWR | O_SYNC);
 	if (fd < 0) {
 		perror("/dev/mem open error");
@@ -37,18 +31,43 @@ int led_output(unsigned char data)
 
         return -1;
 	}
+
+	return 0;
+}
+
+
+int led_output(unsigned char data)
+{
+	int fd,i;
+	static int initial_flag = 1;
 	
+	
+
+	if( (data<0) || (data>255) ){
+		printf("Invalid range!\n");
+		//exit(1);
+        return -1;
+	}
+
+	
+	if (fpga_addr == MAP_FAILED)
+	{
+		printf("mmap hasn't done !\n");
+
+        return -1;
+	}
+
 	led_addr=(unsigned char*)((void*)fpga_addr+LED_ADDR);
 	
 	*led_addr=data; //write led
-	
-	sleep(1);
+
 	//for read
 	data=0;
 	data=*led_addr; //read led
 	//printf("Current LED VALUE : %d\n",data);
 
-	munmap(led_addr, 4096);
-	close(fd);
+	/************************* after do that *********************/
+	//munmap(led_addr, 4096);
+	//close(fd);
 	return 0;
 }
