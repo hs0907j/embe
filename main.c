@@ -18,34 +18,50 @@ Auth : largest@huins.com */
 #define SHARE_MEM_SIZE 1024
 void shared_memory_sending(void *shm_addr, msg v_msg);
 
-int mode = 0;
+key_t queue_key = 1234321;
+key_t shm_key = 124141251;
+key_t shared_mode_key = 65878335;
+
 
 int main(void){
     pid_t pid;
-    key_t queue_key = 1234321;
-    key_t shm_key = 124141251;
+    
     int qid;
-    int sid, shm_stack = 0;
-    void *shm_addr, *ptr;
+    int sid, shared_mode_id;
+    void *shm_addr, *shm_mode_addr, *ptr;
     int success;
     int i;
     int h_add, m_add;
+    int mode = 0;
 
     int clock_change = 1;
 
-    msg v_msg;
+    msg v_msg, mode_msg;
 
     qid = msgget(queue_key , IPC_CREAT|0664);   // parent msg queue allocation.
     if(qid == -1) {
 	    printf("Making Message Queue Failed...\n");
     }
     
+    //////// shared memory for switch data.//////////
     sid = shmget(shm_key, SHARE_MEM_SIZE, IPC_CREAT|0664);
     if(sid == -1) {
         printf("Making Shared Memory Failed....\n");
     }
     
     shm_addr = (void*)shmat(sid, NULL, 0);
+    //////////////////////////////////////////////////
+
+    //////// shared memory for MODE data./////////////
+    shared_mode_id = shmget(shared_mode_key, SHARE_MEM_SIZE, IPC_CREAT|0664);
+    if(shared_mode_id == -1) {
+        printf("Making Shared Memory Failed....\n");
+    }
+    
+    shm_mode_addr = (void*)shmat(shared_mode_id, NULL, 0);
+    //////////////////////////////////////////////////
+
+
 
     led_setup();
 
@@ -55,6 +71,7 @@ int main(void){
         printf("Input Process Fork Failed.\n");
         //Fork Fail
     }
+    /*************************** INPUT PROCESS CHILD 1 **************************/
     else if(pid == 0) // input process. child 1.
     {
         printf("Input Process Actived.\n");
@@ -85,9 +102,19 @@ int main(void){
             if(sid == -1) {
                 printf("Accessing Parent Shared Memory Failed....\n");
             }
-
             // fatch shared memory data.
             shm_addr = (void*)shmat(sid, NULL, 0);
+
+            //////// shared memory for MODE data./////////////
+            shared_mode_id = shmget(shared_mode_key, SHARE_MEM_SIZE, 0664);
+            if(shared_mode_id == -1) {
+                printf("Accessing Parent Shared MODE Memory Failed....\n");
+            }
+    
+            shm_mode_addr = (void*)shmat(shared_mode_id, NULL, 0);
+            //////////////////////////////////////////////////
+
+            
 
             void *shm_ptr;
             int time_change_flag = 0; // 0 don't work, 1 work.
@@ -125,12 +152,21 @@ int main(void){
 
                     // receive shared memory, and change mode.
                     // start with mode 0.
-
+                    
+                    shm_ptr = shm_mode_addr;
+                    shm_ptr++;
+                    
+                    mode_msg.data[0] = *((char*)shm_ptr);
+                    mode = mode_msg.data[0];
+                    
+                    for(i =0; i<10; i++);
+                    //printf("OUTPUT PROC now mode is %d\n", mode);
                     switch(mode) {
                         case 0:
                             output_clock(v_msg, time_change_flag);
                             break;
                         case 1:
+                            output_counter(v_msg);
                             break;
                         case 2:
                             break;
@@ -140,6 +176,7 @@ int main(void){
                 }
             }
         }
+        /*************************** Parent Process !! Calculator !!!!******************/
         else { // parent. Receive Child1's Message Queue.
             printf("Parent Process Actived.\n");
 
@@ -191,6 +228,7 @@ int main(void){
                     }
                 }
                 
+                /****************** button message receive is not need....? **********/
                 // 2. Button message Receive.
 
                 success = msgrcv(qid, (void *)(&v_msg), sizeof(msg) - sizeof(long), BUTTON_INPUT, IPC_NOWAIT);
@@ -237,6 +275,9 @@ void shared_memory_sending(void *shm_addr, msg v_msg) {
     }
     else if(v_msg.msg_type == BUTTON_INPUT) {
         CPY_SIZE = 3;
+    }
+    else {
+        CPY_SIZE = 5;
     }
     memcpy(shm_addr, v_msg.data, CPY_SIZE);    
 

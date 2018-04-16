@@ -1,0 +1,1 @@
+int output_counter(msg v_msg);

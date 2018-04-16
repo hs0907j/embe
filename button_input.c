@@ -17,6 +17,7 @@
 #include <string.h>
 
 
+#include "main.h"
 #include "my_data_structure.h"
 
 
@@ -25,7 +26,13 @@
 #define KEY_RELEASE 0
 #define KEY_PRESS 1
 
-extern int mode;
+#ifndef SHARE_MEM_SIZE
+#define SHARE_MEM_SIZE 1024
+#endif
+
+extern key_t queue_key;
+extern key_t shm_key;
+extern key_t shared_mode_key;
 unsigned char quit = 0;
 
 void user_signal1(int sig) 
@@ -38,11 +45,16 @@ int button_input(key_t qid) {
 	int fd, rd, value, size = sizeof (struct input_event);
 	char name[256] = "Unknown";
 
+    int mode = 0;
     int i, j;
 	int dev;
 	int buff_size;
     int success;
+    int shared_mode_id;
 
+    void* shm_mode_addr;
+
+    msg mode_msg;
     msg sw_msg;
     msg bt_msg;
 
@@ -60,6 +72,16 @@ int button_input(key_t qid) {
 	if((fd = open (device, O_RDONLY|O_NONBLOCK)) == -1) {  //for read nonblocking
 		printf("MainButton input Device Open Error\n");
 	}
+
+    //////// shared memory for MODE data./////////////
+    shared_mode_id = shmget(shared_mode_key, SHARE_MEM_SIZE, 0664);
+    if(shared_mode_id == -1) {
+        printf("Accessing Parent Shared MODE Memory Failed....\n");
+    }
+    
+    shm_mode_addr = (void*)shmat(shared_mode_id, NULL, 0);
+    //////////////////////////////////////////////////
+
 
     //(void)signal(SIGINT, user_signal1);
 	buff_size=sizeof(push_sw_buff);
@@ -115,6 +137,13 @@ int button_input(key_t qid) {
             }
 		}
 
+
+        /*************** sending mode shared memory *****************/
+
+        mode_msg.data[0] = mode;
+        //printf("now mode_msg.data[0] is %d\n", mode_msg.data[0]);
+        shared_memory_sending(shm_mode_addr, mode_msg);
+
         /*************** switch input part **************/
         read(dev, &push_sw_buff, buff_size);
         memset(sw_msg.data, 0, sizeof(sw_msg.data));
@@ -146,7 +175,7 @@ int button_input(key_t qid) {
 
                 break;
             case 1:
-                printf("now input mode is 2\n");
+                //printf("now input mode is 2\n");
                 
                 sw_msg.msg_type = SW_INPUT;
                 memcpy(sw_msg.data, push_sw_buff, buff_size);
@@ -171,10 +200,10 @@ int button_input(key_t qid) {
 
                 break;
             case 2:
-                printf("now input mode is 3\n");
+                //printf("now input mode is 3\n");
                 break;
             case 3:
-                printf("now input mode is 4\n");
+                //printf("now input mode is 4\n");
                 break;
         }
     }

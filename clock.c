@@ -9,13 +9,6 @@ Auth : largest@huins.com */
 #include "led_output.h"
 extern int mode;
 
-int input_clock(key_t qid_sw_input) {
-    int RET;  
-
-    /**************** SWITCH INPUT PART *****************/
-    RET = button_input(qid_sw_input);
-}
-
 int output_clock(msg v_msg, int time_change_flag) {
     int RET;
     static int h_add = 0, m_add = 0;
@@ -31,7 +24,6 @@ int output_clock(msg v_msg, int time_change_flag) {
     if((v_msg.msg_type == SW_TO_FND) && time_change_flag) {
         //printf("hours plus ! : %d\n", h_add);
         //printf("mins plus ! : %d\n", m_add);
-        //sleep(1);
 
         if(v_msg.data[1] == 1) {
             h_add = 0;
@@ -41,7 +33,7 @@ int output_clock(msg v_msg, int time_change_flag) {
         if(v_msg.data[3] == 1) m_add++;
     }
 
-    RET = fnd_output(h_add, m_add);
+    RET = fnd_output_clock(h_add, m_add);
     if(RET != 0) {
         printf("FND OUTPUT failed\n");
     }
@@ -68,17 +60,9 @@ int output_clock(msg v_msg, int time_change_flag) {
             else led_input = 64;
         }
     }
-    /*
-    else if((v_msg.msg_type == -1) && time_change_flag) {
-        led_count++;
-        if(led_count >= 30) {
-            led_count = 0;
-
-            if(led_input == 64) led_input = 32;
-            else led_input = 64;
-        }
+    else {
+        led_input = 128;
     }
-    */
 
     RET = led_output(led_input);
 
