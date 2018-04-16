@@ -43,7 +43,7 @@ int main(void){
 	    printf("Making Message Queue Failed...\n");
     }
     
-    //////// shared memory for switch data.//////////
+    //////// shared memory build for switch data.//////////
     sid = shmget(shm_key, SHARE_MEM_SIZE, IPC_CREAT|0664);
     if(sid == -1) {
         printf("Making Shared Memory Failed....\n");
@@ -52,7 +52,7 @@ int main(void){
     shm_addr = (void*)shmat(sid, NULL, 0);
     //////////////////////////////////////////////////
 
-    //////// shared memory for MODE data./////////////
+    //////// shared memory build for MODE data./////////////
     shared_mode_id = shmget(shared_mode_key, SHARE_MEM_SIZE, IPC_CREAT|0664);
     if(shared_mode_id == -1) {
         printf("Making Shared Memory Failed....\n");
@@ -60,8 +60,6 @@ int main(void){
     
     shm_mode_addr = (void*)shmat(shared_mode_id, NULL, 0);
     //////////////////////////////////////////////////
-
-
 
     led_setup();
 
@@ -161,6 +159,7 @@ int main(void){
                     
                     for(i =0; i<10; i++);
                     //printf("OUTPUT PROC now mode is %d\n", mode);
+                    // OUTPUT MODE SELECT.
                     switch(mode) {
                         case 0:
                             output_clock(v_msg, time_change_flag);
@@ -196,26 +195,25 @@ int main(void){
                     }
                     printf("\n");
 
-                    // do it ! switch()
                     for(i=0; i<9; i++) {
                         if(v_msg.data[i] == 1){
                             switch(i){
-                                case 0: // switch 1
+                                case 0: // switch 1 pushed
                                     clock_change *= -1;
                                     
                                     v_msg.msg_type = SW_TO_LED;
                                     break;
 
-                                case 1: // switch 2
+                                case 1: // switch 2 pushed
                                     v_msg.msg_type = SW_TO_FND;
                                     break;  
 
-                                case 2: // switch 3
+                                case 2: // switch 3 pushed
                                     if(clock_change) {
                                         v_msg.msg_type = SW_TO_FND;
                                     }
                                     break;
-                                case 3: // switch 4
+                                case 3: // switch 4 pushed
                                     if(clock_change) {
                                         v_msg.msg_type = SW_TO_FND;
                                     }
@@ -223,35 +221,10 @@ int main(void){
                             }
                         }
                     }
+                    // Message to Shared memory stock.
                     if(v_msg.msg_type != SW_INPUT) {
                         shared_memory_sending(shm_addr, v_msg); 
                     }
-                }
-                
-                /****************** button message receive is not need....? **********/
-                // 2. Button message Receive.
-
-                success = msgrcv(qid, (void *)(&v_msg), sizeof(msg) - sizeof(long), BUTTON_INPUT, IPC_NOWAIT);
-                if(success == -1) {
-	              //printf("Receive SW Message Failed. There is no Message.\n");
-                }
-                else {
-                    printf("receiving BUTTON data is ");
-                    printf("%d ", v_msg.data[0]);
-                    printf("\n");
-
-                    switch(v_msg.data[0]) {
-                        case 158: // back button. turn off.
-
-                            break;
-
-                        case 115: // volumn + button. mode change.
-                            break;
-
-                        case 114: // volumn - button. mode change.
-                            break;  
-                    }
-                    //shared_memory_sending(shm_addr, v_msg); 
                 }
             }
             printf("parent die\n");
@@ -261,8 +234,9 @@ int main(void){
     return 0;
 }
 
+// data stock to shared memory.
 void shared_memory_sending(void *shm_addr, msg v_msg) {
-    int CPY_SIZE;
+    int CPY_SIZE; // copy size.
 
     *((long *)shm_addr) = v_msg.msg_type;
 

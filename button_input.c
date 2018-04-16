@@ -60,6 +60,7 @@ int button_input(key_t qid) {
 
     unsigned char push_sw_buff[MAX_BUTTON];
 
+    //device setup.
 	char* device = "/dev/input/event0";
     dev = open("/dev/fpga_push_switch", O_RDWR);
 

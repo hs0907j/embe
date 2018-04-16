@@ -10,19 +10,25 @@ enum m_type {
     BUTTON_INPUT = 4,
 };
 
-enum shm_type {
-    SHM_SW_INPUT
-};
-
 typedef struct _msg
 {
     long msg_type;
     char data[MSG_SIZE];
-} msg;
+} msg; // message structure.
 
 /* shared memory data structure
  | ---------------------------- 1024 (SHARE_MEM_SIZE) --------------------------|
  |   4(int)  |  4(long)  | by data_type |    4      |  by_data_type  |          |
  |stack_size | data_type |    data      | data_type |      data      | ........ |
+ */// now don't use.
+
+ /* shared memory data structure.
+ |---------------------------- 1024 (SHARE_MEM_SIZE) --------------------------|
+ | 4 (long) |   data-----------------------------------------------------------|
+ | data_type|   data-----------------------------------------------------------|
+
+
  */
+
+
 #endif

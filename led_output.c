@@ -10,6 +10,7 @@
 unsigned long *fpga_addr = 0;
 unsigned char *led_addr = 0;
 
+// for using led, mmap setup.
 int led_setup(void) {
 	int fd,i;
 	static int initial_flag = 1;
@@ -35,7 +36,7 @@ int led_setup(void) {
 	return 0;
 }
 
-
+// dispaly led setup by using data.
 int led_output(unsigned char data)
 {
 	int fd,i;

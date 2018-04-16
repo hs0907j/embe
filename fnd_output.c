@@ -27,6 +27,7 @@ int fnd_output_counter(msg v_msg, int numeral_system) {
 
     memset(data,0,sizeof(data));    
     
+    // numeral type change.
     one = count%numeral_system;
     ten = count/numeral_system;
     hundred = ten/numeral_system;
@@ -34,12 +35,14 @@ int fnd_output_counter(msg v_msg, int numeral_system) {
     hundred = hundred%numeral_system;
 
     
-    
+    // and add input adder.
     if((v_msg.msg_type == SW_TO_FND)) {
         if(v_msg.data[1] == 1) hundred++;
         if(v_msg.data[2] == 1) ten++;
         if(v_msg.data[3] == 1) one++;
     }
+
+
     //printf("now numeral : %d   ", numeral_system);
     //printf("test : %d %d %d \n", hundred, ten, one);
 
@@ -55,13 +58,17 @@ int fnd_output_counter(msg v_msg, int numeral_system) {
         hundred = 0;
     }
 
+    // save now amount of count.
     count = hundred*numeral_system*numeral_system + ten*numeral_system + one;
     
+    
+    // stock for display.
     data[0]=0;
     data[1]=hundred;
     data[2]=ten;
     data[3]=one;
 
+    // device open and write.
     dev = open(FND_DEVICE, O_RDWR);
     if (dev<0) {
         printf("Device open error : %s\n",FND_DEVICE);
